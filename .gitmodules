@@ -1,0 +1,3 @@
+[submodule "modelplane"]
+	path = modelplane
+	url = https://github.com/tr0njavolta/mp-fork.git

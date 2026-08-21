@@ -1,0 +1,121 @@
+baseURL = "/"
+languageCode = "en-us"
+title = "Modelplane Docs"
+theme = "geekboot"
+enableRobotsTXT = true
+# Git metadata for last-modified dates. Content lives in the modelplane
+# submodule, which this repo's git history doesn't cover, so pages get no
+# git dates. Production builds already set HUGO_ENABLEGITINFO=false.
+enableGitInfo = true
+
+disableKinds = ["taxonomy", "term"]
+ignoreFiles = ["themes/geekboot/content/.*", "README.md"]
+
+[outputs]
+  home = ["html", "llms", "llmsfull", "llmsjson"]
+  section = ["html", "rss", "markdown"]
+  page = ["html", "markdown"]
+
+# Machine-readable variants for AI agents and LLM tools. The markdown format
+# emits a raw-Markdown sibling of every page (page/index.md); the home page also
+# emits llms.txt (an index), llms-full.txt (every page concatenated), and
+# llms.json (the corpus the docs MCP server searches). See content/ai-tools.md.
+[outputFormats]
+  [outputFormats.markdown]
+    mediaType = "text/markdown"
+    isPlainText = true
+    isHTML = false
+    permalinkable = true
+  [outputFormats.llms]
+    mediaType = "text/plain"
+    baseName = "llms"
+    isPlainText = true
+  [outputFormats.llmsfull]
+    mediaType = "text/plain"
+    baseName = "llms-full"
+    isPlainText = true
+  [outputFormats.llmsjson]
+    mediaType = "application/json"
+    baseName = "llms"
+    isPlainText = true
+
+
+[build]
+  # Emit hugo_stats.json listing the tags, classes, and IDs the site uses.
+  # PurgeCSS reads it to strip unused CSS rules. See postcss.config.js.
+  [build.buildStats]
+    enable = true
+
+[markup]
+  [markup.goldmark.renderer]
+    unsafe = true
+  [markup.tableOfContents]
+    startLevel = 1
+    endLevel = 9
+  [markup.highlight]
+    codeFences = true
+    noClasses = false
+    linenos = false
+    anchorLineNos = false
+    lineNumbersInTable = false
+
+[module]
+  # Content, example manifests, and API definitions live in the modelplane
+  # repo, pulled in as the modelplane/ submodule. Everything else - layouts,
+  # the theme, the data that groups the API reference - is local to this repo.
+  [[module.mounts]]
+    source = "modelplane/docs/content"
+    target = "content"
+  [[module.mounts]]
+    source = "assets"
+    target = "assets"
+  [[module.mounts]]
+    source = "modelplane/docs/content"
+    target = "assets/content"
+    includeFiles = ["**/**.png", "**/**.jpg", "**/**.jpeg", "**/**.gif"]
+  # Defining any data mount below suppresses Hugo's default data mount, so mount
+  # the local data dir explicitly (holds apigroups.yaml, which groups the API
+  # reference). Accessible as site.Data.apigroups.
+  [[module.mounts]]
+    source = "data"
+    target = "data"
+  # Mount the APIs directory as Hugo data so the reference partials can read
+  # definition.yaml files without a separate generation step.
+  # Accessible as site.Data.apis.crds.<plural>.definition
+  [[module.mounts]]
+    source = "modelplane/apis"
+    target = "data/apis/crds"
+  # Also mount it as assets so the Markdown output can emit the raw definition.yaml
+  # verbatim (comments preserved) via resources.Get "apis/<plural>/definition.yaml".
+  [[module.mounts]]
+    source = "modelplane/apis"
+    target = "assets/apis"
+  # Mount the manifests directory as assets so the manifests shortcode can read
+  # raw YAML (preserving comments) via resources.Get "examples/<path>.yaml". The
+  # files live under modelplane/docs/manifests/<section>/, one subtree per docs
+  # section.
+  [[module.mounts]]
+    source = "modelplane/docs/manifests"
+    target = "assets/examples"
+
+[security]
+  [security.funcs]
+    getenv = ["^CONTEXT", "^REVIEW_ID", "^VERCEL_ENV"]
+  [security.node.permissions]
+    # Hugo runs Node tools under Node's permission model, which blocks
+    # native addons unless the tool is listed here. The PostCSS pipeline
+    # needs it: LightningCSS is a native addon. "tailwindcss" is Hugo's
+    # default; keep it when overriding the list.
+    allowAddons = ["postcss", "tailwindcss"]
+
+[params]
+  docs = true
+  description = "Modelplane documentation."
+  # "main" on the dev branch; "X.Y" (e.g. "0.1") on release branches.
+  version = "main"
+  # Latest stable release. Drives the version dropdown and the "not the latest
+  # release" banners; the apex (docs.modelplane.ai) is this release's own build.
+  latest = "0.3"
+  [params.anchors]
+    min = 2
+    max = 5

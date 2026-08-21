@@ -1,0 +1,55 @@
+name: Update content
+
+# Bump the modelplane submodule to the tip of the content repo's main. Merging
+# the resulting commit is what ships new prose: this repo pins a content commit,
+# so content changes are invisible to the site until the pin moves.
+#
+# Runs daily and on demand. The content repo can also trigger it right after a
+# merge:
+#   gh workflow run content.yml --repo tr0njavolta/modelplane-docs
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 6 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: content
+  cancel-in-progress: true
+
+jobs:
+  bump:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Bump the content submodule
+        id: bump
+        run: |
+          git submodule update --remote modelplane
+          if git diff --quiet -- modelplane; then
+            echo "Content is already at the tip of main."
+            exit 0
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git -C modelplane rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      # A PR rather than a push to main, so the site build runs against the new
+      # content before it deploys.
+      - name: Open a pull request
+        if: steps.bump.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: content-update
+          title: "Update docs content to ${{ steps.bump.outputs.sha }}"
+          body: >-
+            Moves the modelplane submodule to
+            ${{ steps.bump.outputs.sha }}. CI builds the site against it.
+          commit-message: "Update docs content to ${{ steps.bump.outputs.sha }}"

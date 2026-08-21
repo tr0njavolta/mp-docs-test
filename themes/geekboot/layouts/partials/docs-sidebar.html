@@ -1,0 +1,91 @@
+{{ $current := . }}
+{{ $root := .Site.Home }}
+{{ $ex := .Site.GetPage "/examples" }}
+{{ $ref := .Site.GetPage "/reference" }}
+{{ $isRef := and $ref (eq $current.Section "reference") }}
+{{ $isExamples := and $ex (eq $current.Section "examples") }}
+
+{{/* Home + top-level regular pages + sections, ordered by weight. The home page
+     itself is excluded from the list (the sidebar brand links to it). */}}
+{{ $allItems := (slice $root | append $root.RegularPages | append $root.Sections).ByWeight }}
+
+<nav class="bd-links-nav w-100" aria-label="Docs navigation">
+
+  {{ if $isRef }}
+    {{/* ── Reference tab: landing, then one page per type grouped by apigroups ── */}}
+    {{ with $ref }}
+      <div class="nav-group">
+        <a class="nav-section-link nav-top-link{{ if eq . $current }} active{{ end }}" href="{{ .Permalink }}">{{ .Title }}</a>
+      </div>
+    {{ end }}
+    {{ range site.Data.apigroups.groups }}
+      <div class="nav-group">
+        <div class="nav-group-label">{{ .title }}</div>
+        <div class="nav-children">
+          {{ range .kinds }}
+            {{ $k := . }}
+            {{ range $plural, $dir := $.Site.Data.apis.crds }}
+              {{ $crd := $dir.definition }}
+              {{ if and $crd (eq $crd.spec.names.kind $k) }}
+                {{ with site.GetPage (printf "/reference/%s" $plural) }}
+                  <a class="bd-links d-flex{{ if eq . $current }} active{{ end }}" href="{{ .Permalink }}">{{ $k }}</a>
+                {{ end }}
+              {{ end }}
+            {{ end }}
+          {{ end }}
+        </div>
+      </div>
+    {{ end }}
+  {{ else if $isExamples }}
+    {{/* ── Examples tab: the examples section and its recipes ── */}}
+    {{ with $ex }}
+      <div class="nav-group">
+        <div class="nav-group-label">{{ .Params.navLabel | default .Title }}</div>
+        <div class="nav-children">
+          {{ with .Params.navLanding }}
+            <a class="bd-links d-flex{{ if eq $ex $current }} active{{ end }}" href="{{ $ex.Permalink }}">{{ . }}</a>
+          {{ end }}
+          {{ range .Pages.ByWeight }}
+            {{ if not .Params.tocHidden }}
+              <a class="bd-links d-flex{{ if eq . $current }} active{{ end }}" href="{{ .Permalink }}">{{ .Title }}</a>
+            {{ end }}
+          {{ end }}
+        </div>
+      </div>
+    {{ end }}
+  {{ else }}
+    {{/* ── Documentation tab: every non-reference, non-examples section and page ── */}}
+    {{ range $allItems }}
+      {{ if and (ne . $root) (ne . $ref) (ne . $ex) (not .Params.tocHidden) }}
+        {{ if .IsSection }}
+          {{ $section := . }}
+          <div class="nav-group">
+            {{/* Non-clickable text label; content lives in the sub-pages below. */}}
+            <div class="nav-group-label">{{ .Params.navLabel | default .Title }}</div>
+            <div class="nav-children">
+              {{/* Sections with real landing content expose it as a first child. */}}
+              {{ with .Params.navLanding }}
+                <a class="bd-links d-flex{{ if eq $section $current }} active{{ end }}" href="{{ $section.Permalink }}">{{ . }}</a>
+              {{ end }}
+              {{ range $section.Pages.ByWeight }}
+                {{ if not .Params.tocHidden }}
+                  <a class="bd-links d-flex{{ if eq . $current }} active{{ end }}" href="{{ .Permalink }}">{{ .Title }}</a>
+                {{ end }}
+              {{ end }}
+            </div>
+          </div>
+        {{ else }}
+          {{/* Standalone top-level page (e.g. Concepts): render like a section —
+               a label with the page as its single entry — so it matches. */}}
+          <div class="nav-group">
+            <div class="nav-group-label">{{ .Params.navLabel | default .Title }}</div>
+            <div class="nav-children">
+              <a class="bd-links d-flex{{ if eq . $current }} active{{ end }}" href="{{ .Permalink }}">{{ .Params.linkTitle | default .Title }}</a>
+            </div>
+          </div>
+        {{ end }}
+      {{ end }}
+    {{ end }}
+  {{ end }}
+
+</nav>
