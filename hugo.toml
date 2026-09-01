@@ -1,4 +1,13 @@
 baseURL = "/"
+# Each version is served under its own path prefix (/v0.3/, /main/), so a
+# root-relative link written as /getting-started/ would escape the version it
+# was written for. canonifyURLs resolves every such link against baseURL, which
+# already carries the prefix. It is what makes archived versions work at all:
+# their content is frozen at a release commit and can't be edited to know about
+# prefixes. (relativeURLs looks like the same fix but breaks the asset
+# pipeline's URLs - it fails htmltest with thousands of errors.) See
+# nix/docs.nix.
+canonifyURLs = true
 languageCode = "en-us"
 title = "Modelplane Docs"
 theme = "geekboot"

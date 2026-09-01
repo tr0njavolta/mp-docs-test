@@ -20,7 +20,11 @@
 #     a node_modules tree on disk. We build it reproducibly from
 #     package-lock.json with fetchNpmDeps, so the Hugo build stays inside the
 #     Nix sandbox with no network.
-{ pkgs, self }:
+{
+  pkgs,
+  self,
+  inputs,
+}:
 let
   # Just the two files npm reads, so an edit to the site or the content
   # submodule doesn't invalidate the node_modules build.
@@ -81,10 +85,45 @@ let
   #
   # PostCSS resolves plugins from node_modules via NODE_PATH, and Hugo finds
   # the postcss CLI through the node_modules/.bin on PATH.
+  # Every version of the docs, newest first. This is the same file Hugo's
+  # version dropdown reads, so the build and the switcher can never drift.
+  versionsData = builtins.fromJSON (builtins.readFile ../data/versions.json);
+  latest = versionsData.latest;
+  latestPath =
+    (pkgs.lib.findFirst (v: v.version == latest) (builtins.head versionsData.versions)
+      versionsData.versions
+    ).path;
+
+  # main builds from the modelplane/ submodule, so `hugo server` live-reloads
+  # against a working copy. Every archived version builds from its pinned flake
+  # input - "0.3" from content-0-3, and so on - so flake.lock is the pin.
+  contentFor =
+    version:
+    if version == "main" then
+      null
+    else
+      inputs."content-${builtins.replaceStrings [ "." ] [ "-" ] version}";
+
+  # Hugo joins baseURL to paths verbatim, so a missing trailing slash silently
+  # produces ".../comv0.3/".
+  withSlash = url: if pkgs.lib.hasSuffix "/" url then url else url + "/";
+
+  # The apex holds no Hugo build of its own; it points at the latest version.
+  redirectPage = pkgs.writeText "index.html" ''
+    <!doctype html>
+    <meta charset="utf-8">
+    <title>Modelplane documentation</title>
+    <meta http-equiv="refresh" content="0; url=/${latestPath}/">
+    <link rel="canonical" href="/${latestPath}/">
+    <a href="/${latestPath}/">Modelplane documentation</a>
+  '';
+
   mkSite =
     {
       name,
       baseURL,
+      version,
+      content,
     }:
     pkgs.runCommand name
       {
@@ -96,12 +135,25 @@ let
           HUGO_ENABLEGITINFO = "false";
           HUGO_ENVIRONMENT = "production";
           HUGO_BASEURL = baseURL;
+          # Which version this build is: drives the dropdown's active entry and
+          # the "not the latest release" banners. Passing them per build keeps
+          # every version's banner accurate, which a value baked into hugo.toml
+          # on a release branch cannot be.
+          HUGO_PARAMS_VERSION = version;
+          HUGO_PARAMS_LATEST = latest;
         };
       }
       ''
         cp -r ${self} src
         chmod -R u+w src
         cd src
+        ${pkgs.lib.optionalString (content != null) ''
+          # An archived version: swap its pinned content in at the path
+          # hugo.toml already mounts, so the mounts need no per-version config.
+          rm -rf modelplane
+          cp -r ${content} modelplane
+          chmod -R u+w modelplane
+        ''}
         # Without ?submodules=1 the flake source has no content to build, and
         # Hugo's failure mode is a wall of missing-mount errors. Say why.
         if [ ! -d modelplane/docs/content ]; then
@@ -113,23 +165,44 @@ let
         export NODE_PATH="$PWD/node_modules"
         hugo --minify --destination "$out"
       '';
+
+  # One artifact holding every version under its own path prefix, plus a root
+  # redirect to the latest. One Vercel project serves all of it: no per-version
+  # subdomain, no per-version project, no release branches in this repo, and a
+  # theme fix reaches every archived version on the next build.
+  mkJoined =
+    { name, root }:
+    let
+      copy = v: ''
+        cp -r ${mkSite {
+          name = "${name}-${v.path}";
+          baseURL = "${withSlash root}${v.path}/";
+          version = v.version;
+          content = contentFor v.version;
+        }} $out/${v.path}
+      '';
+    in
+    pkgs.runCommand name { } ''
+      mkdir -p $out
+      ${pkgs.lib.concatMapStrings copy versionsData.versions}
+      cp ${redirectPage} $out/index.html
+    '';
 in
 {
-  # The built static site, served at docs.modelplane.ai.
-  site = mkSite {
+  # Every version, served at docs.modelplane.ai.
+  site = mkJoined {
     name = "modelplane-docs";
-    baseURL =
+    root =
       let
         envBaseURL = builtins.getEnv "HUGO_BASEURL";
       in
       if envBaseURL != "" then envBaseURL else "https://docs.modelplane.ai/";
   };
 
-  # Check internal links with htmltest against a site built with the local
-  # baseURL ("/" from hugo.toml). htmltest resolves links relative to the site
-  # root, so it must not run against the production artifact, whose links carry
-  # the /docs prefix. CheckExternal is false in .htmltest.yml, so this needs no
-  # network.
+  # Check internal links with htmltest against a root-relative build of every
+  # version at once. htmltest resolves links relative to the site root, so it
+  # must not run against the production artifact, whose links are absolute.
+  # CheckExternal is false in .htmltest.yml, so this needs no network.
   htmltest =
     pkgs.runCommand "modelplane-docs-htmltest"
       {
@@ -137,9 +210,9 @@ in
       }
       ''
         htmltest --conf ${self}/utils/htmltest/.htmltest.yml \
-          ${mkSite {
+          ${mkJoined {
             name = "modelplane-docs-local";
-            baseURL = "/";
+            root = "/";
           }}
         mkdir -p $out
         touch $out/.htmltest-passed

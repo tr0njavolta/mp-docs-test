@@ -36,15 +36,45 @@ Nix ignores a flake's submodules unless asked, so `?submodules=1` is not
 optional. Without it the build fails with an empty-submodule error rather than
 publishing a site with no pages.
 
+## Versions
+
+Every version of the docs is built from this one branch and served from one
+Vercel project, each under its own path prefix:
+
+| Path | Content comes from |
+|---|---|
+| `/main/` | the `modelplane/` submodule |
+| `/v0.3/`, `/v0.2/` | the `content-0-3` / `content-0-2` flake inputs |
+
+`data/versions.json` is the list, read by both `nix/docs.nix` and the version
+dropdown so they can't drift. The site root redirects to `latest`.
+
+There are no release branches in this repo and no per-version Vercel project.
+Adding a version is one flake input plus one line in `data/versions.json`:
+
+```bash
+nix flake lock --override-input content-0-4 \
+  github:tr0njavolta/mp-content-test/release-0.4
+```
+
+A theme or layout fix therefore reaches every archived version on the next
+build, which per-branch builds could never do.
+
 ## Pulling in content changes
 
-`.github/workflows/content.yml` bumps the submodule to the tip of the content
-repo's `main` daily, and on demand. Merging that commit is what deploys new
-prose. To do it by hand:
+`.github/workflows/content.yml` bumps every pin - the submodule for main, and
+each archived version's flake input - to the tip of the branch it tracks, and
+opens a pull request. Merging it is what publishes. Run it early with:
 
-```console
-git submodule update --remote modelplane
-git commit -am "Update docs content"
+```bash
+gh workflow run content.yml --repo tr0njavolta/mp-docs-test
+```
+
+By hand:
+
+```bash
+git submodule update --remote modelplane   # main
+nix flake update content-0-3               # one archived version
 ```
 
 ## Rebuilding the JavaScript bundle

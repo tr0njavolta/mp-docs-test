@@ -1,8 +1,13 @@
 name: Update content
 
-# Bump the modelplane submodule to the tip of the content repo's main. Merging
-# the resulting commit is what ships new prose: this repo pins a content commit,
-# so content changes are invisible to the site until the pin moves.
+# Bump every version's content pin to the tip of the branch it tracks: the
+# modelplane submodule for main, and one flake input per archived version.
+# Merging the resulting commit is what ships new prose - this repo pins content
+# commits, so content changes are invisible to the site until the pins move.
+#
+# This is why archived docs need no release branch here and no backport: a fix
+# landed on the content repo's release-0.3 reaches the site through this job,
+# the same way a fix on main does.
 #
 # Runs daily and on demand. The content repo can also trigger it right after a
 # merge:
@@ -30,12 +35,26 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Bump the content submodule
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Bump every content pin
         id: bump
         run: |
           git submodule update --remote modelplane
-          if git diff --quiet -- modelplane; then
-            echo "Content is already at the tip of main."
+
+          # Every archived version is a flake input named content-<version>.
+          # Reading them out of the lock file keeps this job correct when a
+          # version is added, with no edit here.
+          archived=$(jq -r '.nodes.root.inputs | keys[]
+            | select(startswith("content-"))' flake.lock)
+          if [ -n "$archived" ]; then
+            # shellcheck disable=SC2086
+            nix flake update $archived
+          fi
+
+          if git diff --quiet -- modelplane flake.lock; then
+            echo "Every version is already at the tip of its branch."
             exit 0
           fi
           echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -50,6 +69,7 @@ jobs:
           branch: content-update
           title: "Update docs content to ${{ steps.bump.outputs.sha }}"
           body: >-
-            Moves the modelplane submodule to
-            ${{ steps.bump.outputs.sha }}. CI builds the site against it.
+            Moves main's content to ${{ steps.bump.outputs.sha }} and every
+            archived version to the tip of its release branch. CI builds all of
+            them against these pins.
           commit-message: "Update docs content to ${{ steps.bump.outputs.sha }}"
