@@ -53,6 +53,13 @@
       {{ end }}
     </header>
     {{ end }}
+    {{/* Tell a reader on anything but the latest release that they are. */}}
+    {{ $ver := .Site.Params.version }}
+    {{ if and $hasVersions (ne $ver .Site.Params.latest) }}
+    <div class="doc-version-alert">
+      {{ if eq $ver "main" }}{{ partial "master-version-alert" . }}{{ else }}{{ partial "old-version-alert" . }}{{ end }}
+    </div>
+    {{ end }}
     <div class="bd-main-grid{{ if not $hasToc }} no-toc{{ end }}">
     <div class="bd-intro pt-2 ps-lg-2">
       <div class="bd-intro-inner">
