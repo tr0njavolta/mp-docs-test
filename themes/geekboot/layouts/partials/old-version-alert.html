@@ -1,3 +1,15 @@
+{{/* Shown on every build whose version is not the latest release. The link
+     goes to this same page in the latest version, so a reader who lands on
+     archived docs from a search result is one click from the current ones. */}}
+{{ $ver := .Site.Params.version }}
+{{ $latest := .Site.Params.latest }}
+{{ $versions := .Site.Data.versions.versions }}
+{{ $href := "" }}
+{{ range $versions }}
+  {{ if eq .version $latest }}
+    {{ $href = partial "utils/version-href" (dict "target" . "cur" $ver "versions" $versions) }}
+  {{ end }}
+{{ end }}
 <div class="bd-callout bd-callout-info d-flex flex-column w-100">
     <div class="d-flex bd-title fs-6 fw-bold border-bottom border-info">
         <div class="d-flex pe-3 align-self-center">
@@ -9,7 +21,7 @@
     </div>
     <div class="mt-3">
         <p>
-            This document applies to Modelplane v{{ .Page.Params.version }} and not to the latest release v{{.Site.Params.latest}}.
+            This document applies to Modelplane v{{ $ver }} and not to the latest release {{ if $href }}<a href="{{ $href | safeURL }}">v{{ $latest }}</a>{{ else }}v{{ $latest }}{{ end }}.
         </p>
     </div>
 </div>

@@ -1,0 +1,32 @@
+{{/* Relative href to another version's copy of the page being rendered.
+
+     Takes a dict: target (an entry from data/versions.json), cur (this build's
+     version string), versions (the whole list).
+
+     Three things make this fiddlier than it looks, and they are why the version
+     dropdown and the older-version banners share it rather than each doing
+     their own arithmetic:
+
+     - The href must be page-relative. canonifyURLs (hugo.toml) concatenates
+       baseURL onto anything root-relative, so "/v0.2/..." would come back as
+       "/v0.2/v0.2/...", while it leaves a "../" path alone.
+
+     - The global `page` is the page being rendered, not the context handed to
+       the caller. The home layout renders with the overview page's context, and
+       only `page` reflects the output file the link resolves against.
+
+     - RelPermalink is relative to baseURL, so it leaves out the version's path
+       prefix. Every version but the latest has one, and it is a level to climb.
+*/}}
+{{ $depth := 0 }}
+{{ range split (strings.Trim page.RelPermalink "/") "/" }}
+  {{ if ne . "" }}{{ $depth = add $depth 1 }}{{ end }}
+{{ end }}
+{{ $curPrefix := "" }}
+{{ range .versions }}
+  {{ if eq .version $.cur }}{{ $curPrefix = .path }}{{ end }}
+{{ end }}
+{{ if ne $curPrefix "" }}{{ $depth = add $depth 1 }}{{ end }}
+{{ $prefix := cond (eq .target.path "") "" (printf "%s/" .target.path) }}
+{{ $href := printf "%s%s%s" (strings.Repeat $depth "../") $prefix (strings.TrimPrefix "/" page.RelPermalink) }}
+{{ return $href }}
