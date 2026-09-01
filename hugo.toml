@@ -116,6 +116,13 @@ ignoreFiles = ["themes/geekboot/content/.*", "README.md"]
     # needs it: LightningCSS is a native addon. "tailwindcss" is Hugo's
     # default; keep it when overriding the list.
     allowAddons = ["postcss", "tailwindcss"]
+    # PostCSS resolves its plugins through NODE_PATH, which points at a
+    # node_modules that Nix builds and the derivation symlinks in. Node resolves
+    # a symlink to its real path before checking permissions, so Hugo's default
+    # allowRead of ["."] - the project directory - doesn't reach it. Granting
+    # the store keeps the read confined to content Nix put there. See
+    # nix/docs.nix.
+    allowRead = [".", "/nix/store"]
 
 [params]
   docs = true
