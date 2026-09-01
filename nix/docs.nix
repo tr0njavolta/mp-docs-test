@@ -89,11 +89,6 @@ let
   # version dropdown reads, so the build and the switcher can never drift.
   versionsData = builtins.fromJSON (builtins.readFile ../data/versions.json);
   latest = versionsData.latest;
-  latestPath =
-    (pkgs.lib.findFirst (v: v.version == latest) (builtins.head versionsData.versions)
-      versionsData.versions
-    ).path;
-
   # main builds from the modelplane/ submodule, so `hugo server` live-reloads
   # against a working copy. Every archived version builds from its pinned flake
   # input - "0.3" from content-0-3, and so on - so flake.lock is the pin.
@@ -105,18 +100,9 @@ let
       inputs."content-${builtins.replaceStrings [ "." ] [ "-" ] version}";
 
   # Hugo joins baseURL to paths verbatim, so a missing trailing slash silently
-  # produces ".../comv0.3/".
+  # produces ".../comv0.2/". The prefix a version is appended to always ends in
+  # one, and an empty prefix leaves the root URL as it is.
   withSlash = url: if pkgs.lib.hasSuffix "/" url then url else url + "/";
-
-  # The apex holds no Hugo build of its own; it points at the latest version.
-  redirectPage = pkgs.writeText "index.html" ''
-    <!doctype html>
-    <meta charset="utf-8">
-    <title>Modelplane documentation</title>
-    <meta http-equiv="refresh" content="0; url=/${latestPath}/">
-    <link rel="canonical" href="/${latestPath}/">
-    <a href="/${latestPath}/">Modelplane documentation</a>
-  '';
 
   mkSite =
     {
@@ -166,30 +152,42 @@ let
         hugo --minify --destination "$out"
       '';
 
-  # One artifact holding every version under its own path prefix, plus a root
-  # redirect to the latest. One Vercel project serves all of it: no per-version
+  # One artifact holding every version. The latest release has an empty path and
+  # so is served at the root itself, rather than redirecting there; the others
+  # sit under a path prefix. One Vercel project serves all of it: no per-version
   # subdomain, no per-version project, no release branches in this repo, and a
   # theme fix reaches every archived version on the next build.
   mkJoined =
     { name, root }:
     let
-      copy = v: ''
-        cp -r ${mkSite {
-          name = "${name}-${v.path}";
-          baseURL = "${withSlash root}${v.path}/";
-          version = v.version;
-          content = contentFor v.version;
-        }} $out/${v.path}
-      '';
+      copy =
+        v:
+        let
+          build = mkSite {
+            name = "${name}-${if v.path == "" then "latest" else v.path}";
+            baseURL = "${withSlash root}${v.path}";
+            version = v.version;
+            content = contentFor v.version;
+          };
+        in
+        # The latest release lands at the root, so copy its contents in rather
+        # than the directory itself. Store output is read-only, and a later
+        # version needs to write its own directory alongside.
+        ''
+          ${
+            if v.path == "" then "cp -r ${build}/. $out/" else "cp -r ${build} $out/${v.path}"
+          }
+          chmod -R u+w $out
+        '';
     in
     pkgs.runCommand name { } ''
       mkdir -p $out
       ${pkgs.lib.concatMapStrings copy versionsData.versions}
-      cp ${redirectPage} $out/index.html
     '';
 in
 {
-  # Every version, served at docs.modelplane.ai.
+  # Every version, served at docs.modelplane.ai: the latest release at the root,
+  # each other version under its own path prefix.
   site = mkJoined {
     name = "modelplane-docs";
     root =

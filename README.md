@@ -41,13 +41,19 @@ publishing a site with no pages.
 Every version of the docs is built from this one branch and served from one
 Vercel project, each under its own path prefix:
 
-| Path | Content comes from |
-|---|---|
-| `/main/` | the `modelplane/` submodule |
-| `/v0.3/`, `/v0.2/` | the `content-0-3` / `content-0-2` flake inputs |
+| Path | Version | Content comes from |
+|---|---|---|
+| `/` | the latest release | the `content-0-3` flake input |
+| `/v0.2/` | an archived release | the `content-0-2` flake input |
+| `/main/` | the dev build | the `modelplane/` submodule |
 
-`data/versions.json` is the list, read by both `nix/docs.nix` and the version
-dropdown so they can't drift. The site root redirects to `latest`.
+The latest release is served at the root itself, not redirected to, and each new
+release takes that position over. `data/versions.json` is the list, read by both
+`nix/docs.nix` and the version dropdown so they can't drift; the latest entry is
+the one with an empty `path`.
+
+Shipping X.Y means: add its flake input, set `latest`, give X.Y an empty `path`,
+and move the release it replaces to `vX.Y`.
 
 There are no release branches in this repo and no per-version Vercel project.
 Adding a version is one flake input plus one line in `data/versions.json`:
