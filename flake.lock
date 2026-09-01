@@ -34,6 +34,23 @@
         "type": "github"
       }
     },
+    "content-0-4": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1787320182,
+        "narHash": "sha256-IqFC5iWVAs3hKsbBEkaJozL3IrdcF2mr3yb9zueClL0=",
+        "owner": "tr0njavolta",
+        "repo": "mp-content-test",
+        "rev": "54dadee25fb2a3285f693d50b06c81c329ac19a6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "tr0njavolta",
+        "ref": "release-0.4",
+        "repo": "mp-content-test",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1787204541,
@@ -54,6 +71,7 @@
       "inputs": {
         "content-0-2": "content-0-2",
         "content-0-3": "content-0-3",
+        "content-0-4": "content-0-4",
         "nixpkgs": "nixpkgs"
       }
     }

@@ -23,6 +23,10 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
+    content-0-4 = {
+      url = "github:tr0njavolta/mp-content-test/release-0.4";
+      flake = false;
+    };
     content-0-3 = {
       url = "github:tr0njavolta/mp-content-test/release-0.3";
       flake = false;
