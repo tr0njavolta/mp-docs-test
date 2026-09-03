@@ -13,28 +13,49 @@ there, not here.
 
 Clone with the submodule, or init it after the fact:
 
-```console
-git clone --recurse-submodules https://github.com/tr0njavolta/modelplane-docs.git
+```bash
+git clone --recurse-submodules https://github.com/tr0njavolta/mp-docs-test.git
 # or
 git submodule update --init
 ```
 
-Serve locally with live reload:
+Two loops, depending on what you're changing.
 
-```console
-nix run '.?submodules=1#serve'
+**Editing prose or a layout** — live reload, rebuilds on save:
+
+```bash
+nix run '.?submodules=1#serve'      # http://localhost:1313
 ```
 
-Build the production site and run the checks CI runs:
+This serves `main` alone, at the root, because the submodule is the only content
+on disk. The version switcher and the older-version banners don't render here —
+there is only one version to switch between, and the paths they point at don't
+exist locally. That's deliberate, not a bug.
 
-```console
-nix build '.?submodules=1#site'
-nix flake check '.?submodules=1'
+**Checking anything version-related** — builds every version and serves the
+artifact exactly as it deploys, latest at `/` and the rest under their prefixes:
+
+```bash
+nix run '.?submodules=1#preview'    # http://localhost:1313, or pass a port
+```
+
+Slower, no live reload, and the only way to see the switcher and banners work.
+
+**Before pushing:**
+
+```bash
+nix flake check '.?submodules=1'    # builds every version, link-checks them all
 ```
 
 Nix ignores a flake's submodules unless asked, so `?submodules=1` is not
 optional. Without it the build fails with an empty-submodule error rather than
-publishing a site with no pages.
+producing an empty site.
+
+> Running `hugo` directly in `nix develop` panics with `Cannot find module
+> 'postcss-lightningcss'`. Bare `hugo` defaults to the production environment,
+> which runs the PostCSS pipeline against a `node_modules` that only the Nix
+> build provides. Use the commands above; `hugo server` builds in development
+> and skips it.
 
 ## Versions
 

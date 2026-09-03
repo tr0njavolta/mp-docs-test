@@ -55,7 +55,7 @@
     {{ end }}
     {{/* Tell a reader on anything but the latest release that they are. */}}
     {{ $ver := .Site.Params.version }}
-    {{ if and $hasVersions (ne $ver .Site.Params.latest) }}
+    {{ if and .Site.Params.versioned $hasVersions (ne $ver .Site.Data.versions.latest) }}
     <div class="doc-version-alert">
       {{ if eq $ver "main" }}{{ partial "master-version-alert" . }}{{ else }}{{ partial "old-version-alert" . }}{{ end }}
     </div>

@@ -79,7 +79,32 @@
 
       apps = forAllSystems (
         { pkgs, ... }:
+        let
+          docs = docsFor pkgs;
+        in
         {
+          # Serve the built multi-version artifact: every version under its own
+          # path, the latest at the root. `serve` below is the everyday loop and
+          # shows only main, because that is the only content on disk; this is
+          # how to check the version switcher and the older-version banners.
+          preview = {
+            type = "app";
+            meta.description = "Serve every built docs version locally";
+            program = pkgs.lib.getExe (
+              pkgs.writeShellApplication {
+                name = "modelplane-docs-preview";
+                runtimeInputs = [ pkgs.python3 ];
+                inheritPath = false;
+                text = ''
+                  port="''${1:-1313}"
+                  echo "Every version at http://localhost:$port/"
+                  cd ${docs.siteLocalBuild}
+                  python3 -m http.server "$port"
+                '';
+              }
+            );
+          };
+
           # Serve the site locally with live reload. Extra args pass through to
           # hugo server, e.g.: nix run '.?submodules=1#serve' -- --port 8080
           serve = {
@@ -149,8 +174,10 @@
             shellHook = ''
               echo "Modelplane docs shell"
               echo ""
-              echo "  nix run '.?submodules=1#serve'      nix run '.?submodules=1#generate'"
-              echo "  nix flake check '.?submodules=1'"
+              echo "  nix run '.?submodules=1#serve'      edit main, live reload"
+              echo "  nix run '.?submodules=1#preview'    every version, as deployed"
+              echo "  nix flake check '.?submodules=1'    build + link check"
+              echo "  nix run '.?submodules=1#generate'   rebuild the JS bundle"
               echo ""
             '';
           };

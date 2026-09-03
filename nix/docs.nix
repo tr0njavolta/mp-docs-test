@@ -126,7 +126,9 @@ let
           # every version's banner accurate, which a value baked into hugo.toml
           # on a release branch cannot be.
           HUGO_PARAMS_VERSION = version;
-          HUGO_PARAMS_LATEST = latest;
+          # Marks this as one version of a multi-version artifact, which is what
+          # makes the switcher and the older-version banners render. See hugo.toml.
+          HUGO_PARAMS_VERSIONED = "true";
         };
       }
       ''
@@ -184,8 +186,16 @@ let
       mkdir -p $out
       ${pkgs.lib.concatMapStrings copy versionsData.versions}
     '';
+  # The same artifact with root-relative URLs, so it can be served from any
+  # host - htmltest, and `nix run .#preview` for a look at every version.
+  siteLocalBuild = mkJoined {
+    name = "modelplane-docs-local";
+    root = "/";
+  };
 in
 {
+  inherit siteLocalBuild;
+
   # Every version, served at docs.modelplane.ai: the latest release at the root,
   # each other version under its own path prefix.
   site = mkJoined {
@@ -207,11 +217,7 @@ in
         nativeBuildInputs = [ pkgs.htmltest ];
       }
       ''
-        htmltest --conf ${self}/utils/htmltest/.htmltest.yml \
-          ${mkJoined {
-            name = "modelplane-docs-local";
-            root = "/";
-          }}
+        htmltest --conf ${self}/utils/htmltest/.htmltest.yml ${siteLocalBuild}
         mkdir -p $out
         touch $out/.htmltest-passed
       '';

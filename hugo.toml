@@ -127,11 +127,15 @@ ignoreFiles = ["themes/geekboot/content/.*", "README.md"]
 [params]
   docs = true
   description = "Modelplane documentation."
-  # "main" on the dev branch; "X.Y" (e.g. "0.1") on release branches.
+  # Which version this build is. nix/docs.nix overrides it per version; the
+  # value here is what `hugo server` uses, where the only content on disk is the
+  # modelplane/ submodule - that is, main.
   version = "main"
-  # Latest stable release. Drives the version dropdown and the "not the latest
-  # release" banners; the apex (docs.modelplane.ai) is this release's own build.
-  latest = "0.3"
+  # params.versioned is set only by nix/docs.nix, which builds every version into
+  # one artifact. `hugo server` serves one version at the root, so the switcher
+  # and the older-version banners would point at paths that do not exist there;
+  # they render only when this is set. The latest release is read from
+  # data/versions.json, so there is one source for it.
   [params.anchors]
     min = 2
     max = 5

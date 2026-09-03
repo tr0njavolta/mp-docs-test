@@ -2,7 +2,7 @@
      goes to this same page in the latest version, so a reader who lands on
      archived docs from a search result is one click from the current ones. */}}
 {{ $ver := .Site.Params.version }}
-{{ $latest := .Site.Params.latest }}
+{{ $latest := .Site.Data.versions.latest }}
 {{ $versions := .Site.Data.versions.versions }}
 {{ $href := "" }}
 {{ range $versions }}
