@@ -25,19 +25,34 @@
   .bd-title {
     margin-top: -.5rem;
     padding-bottom: .1rem;
-    border-bottom: 1px;
+    // Was "border-bottom: 1px" with no style or color, so it drew nothing and
+    // the markup supplied a Bootstrap border-* utility instead. Take the rule
+    // and the icon from the variant, so a callout carries one colour.
+    border-bottom: 1px solid var(--bd-callout-border, var(--bs-gray-300));
 
     >svg {
       height: 1rem;
+      color: var(--bd-callout-accent, currentColor);
     }
   }
 
 }
 
 // Variations
-@each $variant in $bd-callout-variants {
+//
+// Bootstrap's stock info/warning/danger (#0dcaf0, #ffc107, #dc3545) are not in
+// Modelplane's palette, so map each variant onto the brand's own status colours
+// from _variables.scss rather than deriving them from --bs-*-rgb.
+$bd-callout-colors: (
+  "info":    $mp-cyan,    // Sky - informational
+  "warning": $mp-yellow,  // Yellow - proceed with care
+  "danger":  $mp-coral,   // Coral - error
+);
+
+@each $variant, $color in $bd-callout-colors {
   .bd-callout-#{$variant} {
-    --bd-callout-bg: rgba(var(--bs-#{$variant}-rgb), .075);
-    --bd-callout-border: rgba(var(--bs-#{$variant}-rgb), .5);
+    --bd-callout-bg: #{rgba($color, .075)};
+    --bd-callout-border: #{rgba($color, .5)};
+    --bd-callout-accent: #{$color};
   }
 }
